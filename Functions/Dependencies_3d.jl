@@ -6,6 +6,5 @@ include("./TensorComp/3d/W_Module.jl"); using .ω_module
 include("./Mesh/3d/SLOD_MESH.jl"); using .Mesh3d
 include("./Assembly/3d/Assembly.jl"); using .Assemble
 include("./Minimization/J_method.jl")
-include("./Minimization/Sobolev_Gradient.jl")
 include("Quadrature_3d.jl");
 include("./Dynamics/Dynamics.jl");

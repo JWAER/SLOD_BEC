@@ -4,7 +4,7 @@ include("../Functions/Dependencies_2d.jl");
 
 β = 1000
 Ω = 0.85
-N = 160
+N = 60
 ℓ = 2;
 Nh = 1; #refinement, for smooth problems Nh = 1;
 box = 20; #will give a square domain from -box/2 to box/2
@@ -42,10 +42,7 @@ tid_assembly = time();
 	
 
 #------------------------- Restrict to H^1_0 and compute SLOD-versions-------------------------------
-	sparsity_Vod = ϕ*(vᵢvⱼ[dofs_f,dofs_f]*ϕ')
-	sparsity_Vod.nzval .= eps(10^-5);
-	
-	
+
 	∇vᵢ∇vⱼ = ∇vᵢ∇vⱼ[dofs_f,dofs_f]
 	vᵢvⱼ = vᵢvⱼ[dofs_f,dofs_f];
 	vᵢvⱼV =vᵢvⱼV[dofs_f,dofs_f]
