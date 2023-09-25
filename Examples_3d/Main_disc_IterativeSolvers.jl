@@ -82,7 +82,7 @@ max_it = 100
 tol_res = 0.1
 UGS, E,conv = J_METHOD_ωₕ_IterativeSolvers(mesh,vᵢvⱼ[mesh.dofs,mesh.dofs],∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,ωₕ,ω̃ₕ ,ϵ,β,Quad8,0.05)	
 
-save("../Results/J_method_smooth_N_"*string(N)*"_beta_"*string(β)*"_3D_new_basis.jld","UGS",UGS,"E",E,"conv",conv,"t",tid,"t_pre",tid_pre,"t_SLOD",tid_SLOD)
+save("./Results/J_method_smooth_N_"*string(N)*"_beta_"*string(β)*"_3D_new_basis.jld","UGS",UGS,"E",E,"conv",conv,"t",tid,"t_pre",tid_pre,"t_SLOD",tid_SLOD)
 
 tid = time()
 if(dynamics)
@@ -91,7 +91,7 @@ Vₜvᵢvⱼ = Assemble.vᵢvⱼ(mesh,Vₜ,Quad8,sparsity);
 	println("Computed smooth part in ", time()-tid);
 
 
-	T = 10; Nt = 2^7; max_it = 20; save_it = 1; save_here = "./Results/Final/"; TOL = 10^-8;
+	T = 10; Nt = 2^7; max_it = 20; save_it = 1; save_here = "./Results/"; TOL = 10^-8;
 	CG_q3_ωₕ_IterativeSolvers(UGS,T,Nt,ϕ,∇φᵢ∇φⱼ,φᵢφⱼ,Vₜφᵢφⱼ,ωₕ,TOL,max_it,β,ϵ,save_it,save_here)
 
 end

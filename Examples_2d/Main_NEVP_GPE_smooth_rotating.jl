@@ -4,7 +4,7 @@ include("../Functions/Dependencies_2d.jl");
 
 β = 1000
 Ω = 0.85
-N = 60
+N = 140
 ℓ = 2;
 Nh = 1; #refinement, for smooth problems Nh = 1;
 box = 20; #will give a square domain from -box/2 to box/2
@@ -70,13 +70,13 @@ tid_assembly = time();
 #----------------------------------------------------------------------------------------------#
 	tid = time()
 	max_it = 10000
-	tol_stop = 1e-5; 
-	tol_shift = 3e-3;
+	tol_stop = 1e-6; 
+	tol_shift = 5e-3;
 	UGS, E,conv = J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,UGS,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ ,ϵ,Ω,β,Quad_9,tol_shift,tol_stop)
 	tid = time()-tid;
 	Uₕ = ϕ'*UGS;
 #	
-	save("./Results/Smooth/J_method_rotating_N_"*string(N)*"_Omega_"*string(Ω)*"_beta_"*string(β)*"_2_post_shift.jld","UGS",UGS,"conv",conv,"tid",tid, "E", E,"Uₕ", Uₕ,"tid_assembly",tid_assembly)
+	save("./Results/Smooth/J_method_rotating_N_"*string(N)*"_Omega_"*string(Ω)*"_beta_"*string(β)*".jld","UGS",UGS,"conv",conv,"tid",tid, "E", E,"Uₕ", Uₕ,"tid_assembly",tid_assembly)
 #--------------------- Solve time-dependent problem ----------------------------------
 
 ω̃ₕ  = 0;

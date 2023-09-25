@@ -10,12 +10,7 @@ box_size = 6; #will give a cube domain from -box to box
 mesh = Mesh3d.generate(N,box_size,ℓ)
 sparsity = Assemble.MatrixSparsity(mesh);
 
-tid_all = time();
 
-
-@time ∇vᵢ∇vⱼ  = Assemble.∇vᵢ∇vⱼ(mesh,Quad4,sparsity)
-v(x) = 1.;
-@time vᵢvⱼ = Assemble.vᵢvⱼ(mesh,Quad6,sparsity);
 
 V(x) = 1*dot(x,x)+100*dot(sin.(pi*x),sin.(pi*x));
 
@@ -24,35 +19,14 @@ Vₜ(x) = 2*dot(x,x);
 
 
 
-tid = time();
-Vvᵢvⱼ = Assemble.vᵢvⱼ(mesh,V,Quad8,sparsity);
-println("computed potential ", time()-tid);
-#vᵢLzvⱼ = Assemble.vᵢLzvⱼ(mesh,Quad6);
-P = Assemble.Coarse2Fine(mesh);
-
-
-
-#B = ∇vᵢ∇vⱼ ;
-
-tid = time()
-ϕ = Assemble.ϕ_canonical(mesh,∇vᵢ∇vⱼ,vᵢvⱼ,P);
-println("computed SLOD-basis ", time()-tid);
-
-#b = load("Matrices.jld");
-#ϕ = b["ϕ"];
-#Vvᵢvⱼ = b["Vvᵢvⱼ"]#;,ϕ, "Vvᵢvⱼ",Vvᵢvⱼ);
-
-#save("Matrices.jld","ϕ",ϕ,"Vvᵢvⱼ",Vvᵢvⱼ)
+b = load("./Results/Matrices.jld");
+ϕ = b["ϕ"];
+∇φᵢ∇φⱼ = b["∇φᵢ∇φⱼ"];
+φᵢφⱼ = b["φᵢφⱼ"];
+Vφᵢφⱼ  = b["Vφᵢφⱼ"];
+Vₜφᵢφⱼ = b["Vₜφᵢφⱼ"];
+vᵢvⱼ = b["vᵢvⱼ"];
 b = 0;
-ϕ = ϕ[:,mesh.dofs];
-
-∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ[mesh.dofs,mesh.dofs]*ϕ')
-φᵢφⱼ = ϕ*(vᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ')
-Vφᵢφⱼ  = ϕ*(Vvᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');
-#φᵢLzφⱼ  = ϕ*(vᵢLzvⱼ[mesh.dofs,mesh.dofs]*ϕ');
-
-∇vᵢ∇vⱼ = 0;
-Vvᵢvⱼ = 0; 
 
 SpaceDim_C = size(ϕ,1);
 
@@ -67,7 +41,7 @@ tid = time();
 
 UGS = Assemble.initial_guess_IterativeSolvers(Ω,mesh,φᵢφⱼ,vᵢvⱼ,mesh.dofs,ϕ)
 
-println("time all pre comp ", time()-tid_all);
+
 #----------------------------------------------------------------------------------------------#
 max_it = 1000
 tol_res = 0.05 #shift to inverse iteration
@@ -77,8 +51,6 @@ save("./Results/J_method_smooth_N_"*string(N)*"_beta_"*string(β)*"_3D_new_basis
 ω̃ₕ = 0;
 tid = time()
 if(dynamics)
-	Vₜvᵢvⱼ = Assemble.vᵢvⱼ(mesh,Vₜ,Quad8,sparsity);
-	Vₜφᵢφⱼ = ϕ*(Vₜvᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');
 	println("Computed smooth part in ", time()-tid);
 
 

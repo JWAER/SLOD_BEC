@@ -59,7 +59,8 @@ function initial_guess(Ω,mesh,φᵢφⱼ_lu,vᵢvⱼ,dofs_f,V)
 	if(abs(Ω)>eps(1.0)); rotation = true; end
 
 	if(rotation);
-		U = [ ((1-Ω)*exp(-dot(Node,Node)))*rand(1)[1]+(Ω*exp(-dot(Node,Node))*(Node[1]+1im*Node[2]))*rand(1)[1] for Node = eachcol(mesh.p) ];
+		U = [ (1-Ω)*exp(-dot(Node,Node))*rand(1)[1]+Ω*exp(-dot(Node,Node))*(Node[1]+1im*Node[2])*rand(1)[1] for Node = eachcol(mesh.p) ];
+		
 		
 		# [ (1-Ω)*exp(-dot(Node,Node))+Ω*exp(-dot(Node,Node))*(Node[1]+1im*Node[2]) for Node = eachcol(mesh.p) ]; 
 	else 

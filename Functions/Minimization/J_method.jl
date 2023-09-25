@@ -187,6 +187,8 @@ TRI = sparse(LowerTriangular(sparse(vᵢvⱼ)));
 
 φᵢφⱼ_Bd = blockdiag(φᵢφⱼ,φᵢφⱼ)
 
+max_it_cg = 3*size(φᵢφⱼ,1)
+
 for n = 1:max_it
 tid = time();
 	RHS = [φᵢφⱼ*real(U);φᵢφⱼ*imag(U)];
@@ -206,18 +208,20 @@ tid = time();
 	y = 2*β*[φᵢφⱼ*real(U);φᵢφⱼ*imag(U)]';
 	
 	# Approximation of the eigenvalue and residual
-	λ = real(dot(U_vec,J_sparse*U_vec)-dot(U_vec,x)*dot(y,U_vec));
+	λ = dot(U_vec,J_sparse*U_vec)-dot(U_vec,x)*dot(y,U_vec);
 	Res = J_sparse*U_vec - dot(y,U_vec)*x - λ*(φᵢφⱼ_Bd*U_vec);
-	Res = sqrt(real(dot(Res,Res)));
+	Res = sqrt(dot(Res,Res));
 	
 	# Shifting: Rayleigh shifted or none
 	if Res < tol_Res; σ = -λ;#*(1+1e-8*1im);
+
+
 	 else σ = 0.0; end
 	
-	Jσ = real((J_sparse+σ*φᵢφⱼ_Bd))
+	Jσ = (J_sparse+σ*φᵢφⱼ_Bd)
 
-	G1=cg(Jσ,RHS);
-	G2=cg(Jσ,x);
+	G1=cg(Jσ,RHS,maxiter = max_it_cg);
+	G2=cg(Jσ,x,maxiter = max_it_cg);
 	
 	G = G1 + ((y*G1)/(1-y*G2))*G2.+0im;
 	G = G[1:SpaceDim_C] + 1im*G[(1+SpaceDim_C):2*SpaceDim_C];
