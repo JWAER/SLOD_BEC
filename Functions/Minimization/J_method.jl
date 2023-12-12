@@ -150,7 +150,7 @@ end
 
 
 
-function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,U,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ,ϵ,Ω,β,Quad,tol_Res,TOL)
+function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,U,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ,ϵ,Ω,β,Quad,tol_Switch,tol_Res)
 
 
 ϕᵀ = sparse(ϕ');
@@ -158,7 +158,7 @@ function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφ�
 conv_history = zeros(max_it,3);
 φᵢLzφⱼ = real(φᵢLzφⱼ); # why is φᵢLzφⱼ a complex matrix?
 Aᵥ = vcat(hcat(ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ, -Ω*φᵢLzφⱼ),hcat(Ω*φᵢLzφⱼ,ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ));
-M_E = ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ+1im*Ω*φᵢLzφⱼ;
+L = ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ+1im*Ω*φᵢLzφⱼ;
 
 SpaceDim_C = size(ϕ,1);
 
@@ -167,19 +167,12 @@ U = U/Mass;
 U_vec = [real(U);imag(U)];
 
 Uₕ = ϕᵀ*U;
-ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
-ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
-ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
-ρ  = ρ_Re² + ρ_Im²;
 
 dofs_f = setdiff(1:size(mesh.p,2),mesh.bdry);	
 U_interim = 0im*zeros(size(mesh.p,2))
 U_interim[dofs_f] .= ϕ'*U;
-println(maximum(abs.(U_interim)));
 Eᵧ =  Assemble.NL_Energy(U_interim,Quad,mesh);
     	
-Energy = dot(U,M_E*U)+β/2*dot(ρ,φᵢφⱼ*ρ);
-println("ENERGY START"," ", dot(U,M_E*U), " Eᵧ ", Eᵧ, " Eb ",dot(ρ,(φᵢφⱼ*ρ)));
 	
 tid_online = time();
 	 
@@ -189,56 +182,85 @@ TRI = sparse(LowerTriangular(sparse(vᵢvⱼ)));
 
 max_it_cg = 3*size(φᵢφⱼ,1)
 
+G = zeros(SpaceDim_C)*0im;
+G1 = zeros(2*SpaceDim_C);
+G2 = zeros(2*SpaceDim_C);
+
+
+Res = 1.
+Energy = 10^6;
+
 for n = 1:max_it
 tid = time();
-	RHS = [φᵢφⱼ*real(U);φᵢφⱼ*imag(U)];
 
-	ρφᵢφⱼ_Re² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Re²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
-	ρφᵢφⱼ_Im² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Im²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
-	ρφᵢφⱼ_ReIm = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_ReIm,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+
+	if Res < tol_Switch;#ONLY SPLIT INTO REAL AND IM IF NECESSARY
 	
-	Mρ = ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²
+		RHS = [φᵢφⱼ*real(U);φᵢφⱼ*imag(U)];
+		
+		Uₕ = ϕᵀ*U;
+		ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
+		ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
+		ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
+		ρ  = ρ_Re² + ρ_Im²;
+
+
+		ρφᵢφⱼ_Re² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Re²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+		ρφᵢφⱼ_Im² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Im²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+		ρφᵢφⱼ_ReIm = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_ReIm,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+	
+		Mρ = ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²
 		
 	
-#	ρφᵢφⱼ = vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*ρφᵢφⱼ_ReIm),hcat(2*ρφᵢφⱼ_ReIm,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));
 
-	J_sparse = Aᵥ + β*vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*ρφᵢφⱼ_ReIm),hcat(2*ρφᵢφⱼ_ReIm,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));  
+		J_sparse = Aᵥ + β*vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*ρφᵢφⱼ_ReIm),hcat(2*ρφᵢφⱼ_ReIm,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));  
 	
-	x = [Mρ*real(U);Mρ*imag(U)];
-	y = 2*β*[φᵢφⱼ*real(U);φᵢφⱼ*imag(U)]';
+		x = [Mρ*real(U);Mρ*imag(U)];
+		y = 2*β*[φᵢφⱼ*real(U);φᵢφⱼ*imag(U)]';
 	
-	# Approximation of the eigenvalue and residual
-	λ = dot(U_vec,J_sparse*U_vec)-dot(U_vec,x)*dot(y,U_vec);
-	Res = J_sparse*U_vec - dot(y,U_vec)*x - λ*(φᵢφⱼ_Bd*U_vec);
-	Res = sqrt(dot(Res,Res));
+		# Approximation of the eigenvalue and residual
+		λ = dot(U_vec,J_sparse*U_vec)-dot(U_vec,x)*dot(y,U_vec);
+		Res = J_sparse*U_vec - dot(y,U_vec)*x - λ*(φᵢφⱼ_Bd*U_vec);
+		Res = sqrt(dot(Res,Res));
 	
-	# Shifting: Rayleigh shifted or none
-	if Res < tol_Res; σ = -λ;#*(1+1e-8*1im);
+		# Shifting: Rayleigh shifted or none
+		σ = -λ;#
 
+		Jσ = (J_sparse+σ*φᵢφⱼ_Bd)
 
-	 else σ = 0.0; end
+		cg!(G1,Jσ,RHS,maxiter = max_it_cg);jacobi!(G1,Jσ,RHS) 
+		cg!(G2,Jσ,x,maxiter = max_it_cg);jacobi!(G2,Jσ,x)
 	
-	Jσ = (J_sparse+σ*φᵢφⱼ_Bd)
-
-	G1=cg(Jσ,RHS,maxiter = max_it_cg);
-	G2=cg(Jσ,x,maxiter = max_it_cg);
+		G1 += + ((y*G1)/(1-y*G2))*G2;
+		G = G1[1:SpaceDim_C] + 1im*G1[(1+SpaceDim_C):2*SpaceDim_C];
+		G ./= dot(U,φᵢφⱼ*G);
 	
-	G = G1 + ((y*G1)/(1-y*G2))*G2.+0im;
-	G = G[1:SpaceDim_C] + 1im*G[(1+SpaceDim_C):2*SpaceDim_C];
-	G ./= dot(U,φᵢφⱼ*G);
-	
-	if Res < tol_Res 
+		opt = U_vec'*(Aᵥ*U_vec)+ β*dot(x,U_vec)/2;#old energy, but avoids extra computation
 		τ = 1.0; 
 	else 
+		RHS = φᵢφⱼ*U;
+	
+		Uₕ = ϕᵀ*U;
+		ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+ 		ρₕ =ϕᵀ*ρ; #consider changing
+ 	
+		ρvᵢvⱼ = Assemble.ρφᵢφⱼ(ρₕ,ωₕ,ω̃ₕ,TRI);
+        	Mρ = ϕ*(ρvᵢvⱼ*ϕᵀ);
+
+		λ = real(U'*(L*U)+β*U'*(Mρ*U));
+		d = (L*U)+β*(Mρ*U)-λ*(φᵢφⱼ*U); Res = sqrt(real(dot(d,d)));
+		
+		cg!(G,L+β*Mρ,RHS,reltol = 10^-4); 
+		
 		Gₕ = ϕᵀ*G;
 		ρ_G =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
 		ρ_Gₕ = ϕᵀ*ρ_G;
 		Gρ_Gvᵢ =ϕ*Assemble.u²uvᵢ(ωₕ,Gₕ,ρ_Gₕ);
 		
 
-		a0 = real(dot(U,M_E*U));
-		a1 = 2.0*real(dot(U,M_E*G));
-		a2 = real(dot(G,M_E*G));
+		a0 = real(dot(U,L*U));
+		a1 = 2.0*real(dot(U,L*G));
+		a2 = real(dot(G,L*G));
 
   
   		b0 = β/2*real(dot(U,Mρ*U));
@@ -259,22 +281,17 @@ tid = time();
 		τ,opt = Golden_section(a0,a1,a2,b0,b1,b2,b3,b4,z0,z1,z2)
 
 	end
+	
 	U = (1-τ)*U+τ*G;
 	U ./= sqrt(real(dot(U,φᵢφⱼ*U)));
 	U_vec = [real(U);imag(U)];
 	
-	Uₕ = ϕᵀ*U;
-	ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
-	ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
-	ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
-	ρ  = ρ_Re² + ρ_Im²;
 
-	out = dot(U,M_E*U)+β/2*dot(ρ,φᵢφⱼ*ρ);
-	diff_E = Energy - out;	
-	Energy = out;
+	diff_E = Energy - opt;	
+	Energy = opt;
 	println(n, ": Energy ", real(Energy), " λ ", λ, " Res ", Res , " time ", round(100*(time()-tid))/100)
 	conv_history[n,:] = [real(Energy), λ, Res]; 
-	if(abs(Res)<TOL);
+	if(abs(Res)<tol_Res);
 		println( "time online ", time()-tid_online); 
 
 		dofs_f = setdiff(1:size(mesh.p,2),mesh.bdry);
@@ -293,8 +310,8 @@ end
 
 
 
-
-function J_METHOD_ωₕ_IterativeSolvers(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,U,ϕ,max_it,ωₕ,ω̃ₕ,ϵ,β,Quad,tol_Res,tol_stop)
+function
+J_METHOD_ωₕ_IterativeSolvers(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,U,ϕ,max_it,ωₕ,ω̃ₕ,ϵ,β,Quad,tol_Res,tol_stop)
 
 ϕᵀ = sparse(ϕ');
 
@@ -432,9 +449,5 @@ end
 	
 return U,Energy,E_exact,conv_history
 end
-
-
-
-
 
 

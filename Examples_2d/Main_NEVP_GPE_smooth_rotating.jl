@@ -4,7 +4,7 @@ include("../Functions/Dependencies_2d.jl");
 
 β = 1000
 Ω = 0.85
-N = 140
+N = 60
 ℓ = 2;
 Nh = 1; #refinement, for smooth problems Nh = 1;
 box = 20; #will give a square domain from -box/2 to box/2
