@@ -180,7 +180,7 @@ TRI = sparse(LowerTriangular(sparse(vᵢvⱼ)));
 
 φᵢφⱼ_Bd = blockdiag(φᵢφⱼ,φᵢφⱼ)
 
-max_it_cg = 3*size(φᵢφⱼ,1)
+max_it_cg = 10*size(φᵢφⱼ,1)
 
 G = zeros(SpaceDim_C)*0im;
 G1 = zeros(2*SpaceDim_C);
@@ -228,8 +228,8 @@ tid = time();
 
 		Jσ = (J_sparse+σ*φᵢφⱼ_Bd)
 
-		cg!(G1,Jσ,RHS,maxiter = max_it_cg);jacobi!(G1,Jσ,RHS) 
-		cg!(G2,Jσ,x,maxiter = max_it_cg);jacobi!(G2,Jσ,x)
+		G1 = Jσ\RHS;
+		G2 = Jσ\x;
 	
 		G1 += + ((y*G1)/(1-y*G2))*G2;
 		G = G1[1:SpaceDim_C] + 1im*G1[(1+SpaceDim_C):2*SpaceDim_C];
