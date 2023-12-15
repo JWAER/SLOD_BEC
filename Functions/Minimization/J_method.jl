@@ -148,38 +148,27 @@ end
 return U,Energy,E_exact,conv_history
 end
 
-
-
-function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,U,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ,ϵ,Ω,β,Quad,tol_Res,TOL)
+function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,U,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ,ϵ,Ω,β,Quad,tol_Switch,tol_Res,E_TOL)
 
 
 ϕᵀ = sparse(ϕ');
 
 conv_history = zeros(max_it,3);
-φᵢLzφⱼ = real(φᵢLzφⱼ); # why is φᵢLzφⱼ a complex matrix?
+φᵢLzφⱼ = real(φᵢLzφⱼ); #
 Aᵥ = vcat(hcat(ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ, -Ω*φᵢLzφⱼ),hcat(Ω*φᵢLzφⱼ,ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ));
-M_E = ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ+1im*Ω*φᵢLzφⱼ;
+L = ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ+1im*Ω*φᵢLzφⱼ;
 
 SpaceDim_C = size(ϕ,1);
+SpaceDim_f = size(ϕ,2);
 
 Mass = sqrt(dot(U,(φᵢφⱼ*U)));
 U = U/Mass;
 U_vec = [real(U);imag(U)];
 
 Uₕ = ϕᵀ*U;
-ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
-ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
-ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
-ρ  = ρ_Re² + ρ_Im²;
 
 dofs_f = setdiff(1:size(mesh.p,2),mesh.bdry);	
-U_interim = 0im*zeros(size(mesh.p,2))
-U_interim[dofs_f] .= ϕ'*U;
-println(maximum(abs.(U_interim)));
-Eᵧ =  Assemble.NL_Energy(U_interim,Quad,mesh);
-    	
-Energy = dot(U,M_E*U)+β/2*dot(ρ,φᵢφⱼ*ρ);
-println("ENERGY START"," ", dot(U,M_E*U), " Eᵧ ", Eᵧ, " Eb ",dot(ρ,(φᵢφⱼ*ρ)));
+
 	
 tid_online = time();
 	 
@@ -187,61 +176,106 @@ TRI = sparse(LowerTriangular(sparse(vᵢvⱼ)));
 
 φᵢφⱼ_Bd = blockdiag(φᵢφⱼ,φᵢφⱼ)
 
-max_it_cg = 10*size(φᵢφⱼ,1)
+max_it_IT = 100*size(φᵢφⱼ,1)
+
+G = zeros(SpaceDim_C)*0im;
+G1 = zeros(2*SpaceDim_C);
+G2 = zeros(2*SpaceDim_C);
+
+
+Res = 1.
+Energy = 10^6;
+E_exact = 1.0
+N_it = 0
+
+
 
 for n = 1:max_it
 tid = time();
-	RHS = [φᵢφⱼ*real(U);φᵢφⱼ*imag(U)];
 
-	ρφᵢφⱼ_Re² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Re²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
-	ρφᵢφⱼ_Im² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Im²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
-	ρφᵢφⱼ_ReIm = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_ReIm,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+	if( (Res < tol_Switch)   );#ONLY SPLIT INTO REAL AND IM IF NECESSARY
+		U_vec = [real(U);imag(U)];
 	
-	Mρ = ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²
+		RHS = [φᵢφⱼ*real(U);φᵢφⱼ*imag(U)];
 		
-	
-#	ρφᵢφⱼ = vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*ρφᵢφⱼ_ReIm),hcat(2*ρφᵢφⱼ_ReIm,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));
-
-	J_sparse = Aᵥ + β*vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*ρφᵢφⱼ_ReIm),hcat(2*ρφᵢφⱼ_ReIm,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));  
-	
-	x = [Mρ*real(U);Mρ*imag(U)];
-	y = 2*β*[φᵢφⱼ*real(U);φᵢφⱼ*imag(U)]';
-	
-	# Approximation of the eigenvalue and residual
-	λ = dot(U_vec,J_sparse*U_vec)-dot(U_vec,x)*dot(y,U_vec);
-	Res = J_sparse*U_vec - dot(y,U_vec)*x - λ*(φᵢφⱼ_Bd*U_vec);
-	Res = sqrt(dot(Res,Res));
-	
-	# Shifting: Rayleigh shifted or none
-	if Res < tol_Res; σ = -λ;#*(1+1e-8*1im);
+		Uₕ = ϕᵀ*U;
+		ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
+		ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
+		ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
+		ρ  = ρ_Re² + ρ_Im²;
 
 
-	 else σ = 0.0; end
-	
-	Jσ = (J_sparse+σ*φᵢφⱼ_Bd)
 
-	G1 = Jσ\RHS;
-	G2 = Jσ\x;
+		ρφᵢφⱼ_Re²= ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Re²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+		ρφᵢφⱼ_Im² = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_Im²,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+		ρφᵢφⱼ_ReIm = ϕ*Assemble.ρφᵢφⱼ(ϕᵀ*ρ_ReIm,ωₕ,ω̃ₕ,TRI)*ϕᵀ; 
+		
+#=
+		ρφᵢφⱼ_Re² = LinearMap(x_h-> ϕ*Assemble.u²uvᵢ(ωₕ,ρ_Re²_h,x_h),SpaceDim_C,SpaceDim_f); 
+		ρφᵢφⱼ_Im² = LinearMap(x_h-> ϕ*Assemble.u²uvᵢ(ωₕ,ρ_Im²_h,x_h),SpaceDim_C,SpaceDim_f); =#		
+			Mρ = ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²
 
-	G1=idrs(Jσ,RHS,maxiter = max_it_cg,reltol=1e-8);
-	G2=idrs(Jσ,x,maxiter = max_it_cg,reltol=1e-8);
+	   	
+		#J_sparse = Aᵥ + β*vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*LIm1),			hcat(2*LIm2,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));  
+		
+		J_sparse = Aᵥ + β*vcat(hcat(3*ρφᵢφⱼ_Re²+ρφᵢφⱼ_Im²,2*ρφᵢφⱼ_ReIm),hcat(2*ρφᵢφⱼ_ReIm,ρφᵢφⱼ_Re²+3*ρφᵢφⱼ_Im²));  
+		x = [Mρ*real(U);Mρ*imag(U)];
+		y = 2*β*[φᵢφⱼ*real(U);φᵢφⱼ*imag(U)]';
 	
-	G = G1 + ((y*G1)/(1-y*G2))*G2.+0im;
-	G = G[1:SpaceDim_C] + 1im*G[(1+SpaceDim_C):2*SpaceDim_C];
-	G ./= dot(U,φᵢφⱼ*G);
+		
+		# Approximation of the eigenvalue and residual
+		λ = dot(U_vec,J_sparse*U_vec)-dot(U_vec,x)*dot(y,U_vec);
+		λ_Sobolev = dot(U_vec,Aᵥ*U_vec)+β*dot(U_vec,x);
+		
+		
+		Res = J_sparse*U_vec - dot(y,U_vec)*x - λ*(φᵢφⱼ_Bd*U_vec);
+		Res = sqrt(dot(Res,Res));
 	
-	if Res < tol_Res 
-		τ = 1.0; 
+		# Shifting:
+		#σ = -λ
+		Jσ = (J_sparse-λ*φᵢφⱼ_Bd)
+		
+		idrs!(G1,Jσ,RHS,reltol = 1e-8, maxiter = SpaceDim_C*10)
+		idrs!(G2,Jσ,x)
+	
+		G1+= dot(G1,y)/(1-dot(y,G2))*G2;   
+		G .= G1[1:SpaceDim_C] + 1im*G1[(1+SpaceDim_C):2*SpaceDim_C];
+
+		tol_Switch/=1.1;
+		N_it +=1;
+		
+		U = G;
+		U ./= sqrt(real(dot(U,φᵢφⱼ*U)));
+		
+		ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+ 		
+		opt = real(U'*(L*U)+β/2*ρ'*(φᵢφⱼ*ρ));
 	else 
+		N_it +=1;
+		RHS = φᵢφⱼ*U;
+	
+		Uₕ = ϕᵀ*U;
+		ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+ 		ρₕ =ϕᵀ*ρ; #consider changing
+ 	
+		ρvᵢvⱼ = Assemble.ρφᵢφⱼ(ρₕ,ωₕ,ω̃ₕ,TRI);
+        	Mρ = ϕ*(ρvᵢvⱼ*ϕᵀ);
+		#Mρ =LinearMap(x-> ϕ*(ρvᵢvⱼ*(ϕᵀ*x)),SpaceDim_C,SpaceDim_C);
+		λ = real(U'*(L*U)+β*U'*(Mρ*U));
+		d = (L*U)+β*(Mρ*U)-λ*(φᵢφⱼ*U); Res = sqrt(real(dot(d,d)));
+		
+		
+		idrs!(G,L+β*Mρ,RHS,reltol = 10^-8); 
+		
 		Gₕ = ϕᵀ*G;
 		ρ_G =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
 		ρ_Gₕ = ϕᵀ*ρ_G;
 		Gρ_Gvᵢ =ϕ*Assemble.u²uvᵢ(ωₕ,Gₕ,ρ_Gₕ);
 		
 
-		a0 = real(dot(U,M_E*U));
-		a1 = 2.0*real(dot(U,M_E*G));
-		a2 = real(dot(G,M_E*G));
+		a0 = real(dot(U,L*U));
+		a1 = 2.0*real(dot(U,L*G));
+		a2 = real(dot(G,L*G));
 
   
   		b0 = β/2*real(dot(U,Mρ*U));
@@ -255,29 +289,25 @@ tid = time();
 		z0	= real(dot(U,φᵢφⱼ*U));
 		z1 	= 2*real(dot(U,φᵢφⱼ*G));
 		z2	= real(dot(G,φᵢφⱼ*G));
-
+	
+	
 	
 		#----------------GOLDEN SECTION SEARCH WITH ASSUMPTIONS ON PROXIMITY TO ROOT-----------------
 
 		τ,opt = Golden_section(a0,a1,a2,b0,b1,b2,b3,b4,z0,z1,z2)
-
-	end
-	U = (1-τ)*U+τ*G;
-	U ./= sqrt(real(dot(U,φᵢφⱼ*U)));
-	U_vec = [real(U);imag(U)];
+		
+		U = (1-τ)*U+τ*G;
+		U ./= sqrt(real(dot(U,φᵢφⱼ*U)));
 	
-	Uₕ = ϕᵀ*U;
-	ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
-	ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
-	ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
-	ρ  = ρ_Re² + ρ_Im²;
+	end
+	
+	
 
-	out = dot(U,M_E*U)+β/2*dot(ρ,φᵢφⱼ*ρ);
-	diff_E = Energy - out;	
-	Energy = out;
+	diff_E = Energy - opt;	
+	Energy = opt;
 	println(n, ": Energy ", real(Energy), " λ ", λ, " Res ", Res , " time ", round(100*(time()-tid))/100)
 	conv_history[n,:] = [real(Energy), λ, Res]; 
-	if(abs(Res)<TOL);
+	if( (abs(Res)<tol_Res) | (N_it == max_it) | ( abs(diff_E)<E_TOL) );
 		println( "time online ", time()-tid_online); 
 
 		dofs_f = setdiff(1:size(mesh.p,2),mesh.bdry);
@@ -285,14 +315,17 @@ tid = time();
 		U_interim[dofs_f] .= ϕ'*U;
 
 		Eᵧ =  Assemble.NL_Energy(U_interim,Quad,mesh);
-		E_exact = U'*((ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ+1im*Ω*φᵢLzφⱼ)*U)+β/2*Eᵧ;
-		println(E_exact, " <---- Exact energy")
+		E_exact = real(U'*((ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ+1im*Ω*φᵢLzφⱼ)*U)+β/2*Eᵧ);
+		
+		N_it = n;
 		break; 
 	end
 end
 
-return U,Energy,conv_history
+return U,Energy,E_exact,conv_history[1:N_it,:]
 end
+
+
 
 
 

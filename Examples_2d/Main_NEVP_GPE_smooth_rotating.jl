@@ -4,11 +4,7 @@ include("../Functions/Dependencies_2d.jl");
 
 β = 1000
 Ω = 0.85
-<<<<<<< HEAD
 N = 80
-=======
-N = 140
->>>>>>> parent of 1e65d5e... J-iteration improvement
 ℓ = 2;
 Nh = 1; #refinement, for smooth problems Nh = 1;
 box = 20; #will give a square domain from -box/2 to box/2
@@ -76,7 +72,8 @@ tid_assembly = time();
 	max_it = 10000
 	tol_stop = 1e-6; 
 	tol_shift = 5e-3;
-	UGS, E,conv = J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,UGS,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ ,ϵ,Ω,β,Quad_9,tol_shift,tol_stop)
+	tol_E = 1e-8;
+	UGS, E,conv = J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,UGS,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ ,ϵ,Ω,β,Quad_9,tol_shift,tol_stop,tol_E)
 	tid = time()-tid;
 	Uₕ = ϕ'*UGS;
 #	
