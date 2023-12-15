@@ -4,7 +4,11 @@ include("../Functions/Dependencies_2d.jl");
 
 β = 1000
 Ω = 0.85
+<<<<<<< HEAD
 N = 80
+=======
+N = 140
+>>>>>>> parent of 1e65d5e... J-iteration improvement
 ℓ = 2;
 Nh = 1; #refinement, for smooth problems Nh = 1;
 box = 20; #will give a square domain from -box/2 to box/2
