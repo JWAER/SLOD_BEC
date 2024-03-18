@@ -1,4 +1,4 @@
-using LinearAlgebra, SparseArrays, IterativeSolvers,JLD, MKLSparse, Preconditioners
+using LinearAlgebra, SparseArrays, IterativeSolvers,JLD, MKLSparse, Preconditioners,IncompleteLU
 
 
 include("./TensorComp/3d/W_Module.jl"); using .ω_module
