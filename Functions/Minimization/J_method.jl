@@ -267,7 +267,6 @@ tid = time();
 		
 		Mit = L+β*Mρ;
 		pl = DiagonalPreconditioner(Mit);
-		if(n==150); file = matopen("Matrix_Rot.mat","w"); write(file,"Mit",Mit); close(file); end
 		idrs!(G,Mit,RHS,reltol = 10^-7,Pl=pl); 
 		#idrs!(G,L+β*Mρ,RHS,reltol = 10^-7); 
 		
