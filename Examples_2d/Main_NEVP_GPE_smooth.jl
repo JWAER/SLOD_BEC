@@ -6,8 +6,8 @@ include("../Functions/Dependencies_2d.jl");
 
 β = 50
 Ω = 0.
-for N  = [128];
-
+#for N  =256# [128];
+N =64
 ℓ = 2;
 Nh = 1; #refinement, for smooth problems Nh = 1;
 box = 12; #will give a square domain from -box/2 to box/2
@@ -43,10 +43,10 @@ tid_assembly = time();
 	
 
 	∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ*ϕ')
-	φᵢφⱼ = ϕ*(vᵢvⱼ*ϕ')
+	φᵢφⱼ = ϕ*(vᵢvⱼ*ϕ'); φᵢφⱼ +=φᵢφⱼ'; φᵢφⱼ /=2;
 	Vφᵢφⱼ = ϕ*(vᵢvⱼV*ϕ');
 	φᵢLzφⱼ = ϕ*(vᵢLzvⱼ*ϕ');
-	-----------------------------------------------------------------------------#
+#	-----------------------------------------------------------------------------#
 
 #---------------------------------------- Compute Tensor ----------------------------------------#
 
@@ -62,14 +62,14 @@ tid_assembly = time()-tid_assembly;
 
 #---------------------------------Initial guess -----------------------------------------------#
 
-	φᵢφⱼ_lu = lu(φᵢφⱼ); # compute lu once
-	UGS = Assemble.initial_guess(Ω,mesh,φᵢφⱼ_lu,vᵢvⱼ,dofs_f,ϕ)
+	φᵢφⱼ_chol = cholesky(φᵢφⱼ); # compute lu once
+	UGS = Assemble.initial_guess(Ω,mesh,φᵢφⱼ_chol,vᵢvⱼ,dofs_f,ϕ)
 
 #----------------------------------------------------------------------------------------------#
 	tid = time()
 	max_it = 10000
 	tol_stop = 1e-7;
-	UGS,Ẽ, E,conv = J_METHOD_ωₕ(mesh,vᵢvⱼ[dofs_f,dofs_f],∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ ,ϵ,β,Quad_9,1e-1,tol_stop)
+	UGS,Ẽ, E,conv = J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,φᵢφⱼ_chol,ωₕ,ω̃ₕ ,ϵ,β,Quad_9,1e-1,tol_stop)
 				
 	tid = time()-tid;
 	Uh = ϕ'*UGS;
@@ -86,5 +86,5 @@ tid_assembly = time()-tid_assembly;
 	end
 
 
-end
+#end
 

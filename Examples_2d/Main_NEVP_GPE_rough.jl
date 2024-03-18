@@ -3,11 +3,10 @@ include("../Functions/Dependencies_2d.jl");
 
 #----------------------------Generate or load square domain -------------------------------------#
 ℓ = 2;
-Nh = 3; #refinement, for smooth problems Nh = 1;
-Ns = [12 24 48 96 192]
+Nh = 5; #refinement, for smooth problems Nh = 1;
+Ns = [12 24 48 96 192];
 
-for it = 2
-#for it = 2
+for it = 1:5
 
 βs = 100;
 Ω = 0.0;
@@ -70,11 +69,10 @@ println("Computed SLOD space in ", time()-tid);
 	∇vᵢ∇vⱼ = ∇vᵢ∇vⱼ[dofs_f,dofs_f]
 	vᵢvⱼ = vᵢvⱼ[dofs_f,dofs_f];
 	vᵢvⱼV =vᵢvⱼV[dofs_f,dofs_f]
-	vᵢLzvⱼ =vᵢLzvⱼ[dofs_f,dofs_f];
 	
 
 	∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ*ϕ')
-	φᵢφⱼ = ϕ*(vᵢvⱼ*ϕ')
+	φᵢφⱼ = ϕ*(vᵢvⱼ*ϕ'); φᵢφⱼ +=φᵢφⱼ'; φᵢφⱼ /=2;
 	Vφᵢφⱼ = ϕ*(vᵢvⱼV*ϕ');
 	
 	
@@ -94,16 +92,16 @@ println("Computed SLOD space in ", time()-tid);
 #-----------------------------------Solve for minimizier --------------------------------------#
 
 
-φᵢφⱼ_lu = lu(φᵢφⱼ); # compute lu once
-UGS = Assemble.initial_guess(Ω,mesh,φᵢφⱼ_lu,vᵢvⱼ,dofs_f,ϕ)
+φᵢφⱼ_chol = cholesk(φᵢφⱼ); # compute lu once
+UGS = Assemble.initial_guess(Ω,mesh,φᵢφⱼ_chol,vᵢvⱼ,dofs_f,ϕ)
 
 #----------------------------------------------------------------------------------------------#
 #max_it = 20
 tid = time()
 max_it = 1000
-tol_Res = .1;
+tol_shift = 0.05;
 tol_stop = 1e-7;
-UGS, E,conv,E_exact = J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ ,ϵ,βs,Quad_9,tol_Res,tol_stop)	
+UGS, E,conv,E_exact = J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,φᵢφⱼ_chol,ωₕ,ω̃ₕ ,ϵ,βs,Quad_9,tol_shift,tol_stop)	  
 tid = time()-tid;
 println("OD ", tid);
 Uh = ϕ'*UGS;

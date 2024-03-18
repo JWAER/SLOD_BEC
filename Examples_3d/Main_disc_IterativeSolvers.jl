@@ -5,7 +5,7 @@ prealloc = 2*10^8;
 #----------------------------Generate or load square domain -------------------------------------#
 ℓ = 1;
 Nh = 1; #refinement, for smooth problems Nh = 1;
-N = 30;
+N = 10;
 β = 50
 Ω = 0.0;
 ϵ = 1/2; 
@@ -58,6 +58,8 @@ Aᵥ = ϵ*∇vᵢ∇vⱼ+vᵢvⱼVd;
 
 tid = time();
 ϕ = Assemble.ϕ_refinement2(mesh,Aᵥ,vᵢvⱼ,P,ℓ,sparsity)#,∇vᵢ∇vⱼ); #assembles EVERY SLOD-function ... possibly ok in 2d
+
+
 tid_SLOD = time()-tid;
 
 #------------------------- Restrict to H^1_0   ----------------------------------
@@ -65,14 +67,14 @@ dofs_f = setdiff(1:size(mesh.p,2),mesh.bdry);
 
 ϕ = sparse(ϕ)[:,dofs_f];
 ∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ[dofs_f,dofs_f]*ϕ')
-φᵢφⱼ = ϕ*(vᵢvⱼ[dofs_f,dofs_f]*ϕ')
+φᵢφⱼ = ϕ*(vᵢvⱼ[dofs_f,dofs_f]*ϕ'); φᵢφⱼ +=φᵢφⱼ'; φᵢφⱼ /=2;
 Vφᵢφⱼ = ϕ*(vᵢvⱼV[dofs_f,dofs_f]*ϕ');
 
 SpaceDim_C = size(ϕ,1);
 tid = time();
 ωₕ=ω_module.PreAllocateW(vᵢvⱼ[mesh.dofs,mesh.dofs])
 ω_module.Compute_Wh(mesh,ωₕ,Quad8);
-ω̃ₕ  = ω_module.Compute_tilde(ωₕ,length(ωₕ.Val)   )
+ω̃ₕ  = ω_module.Compute_tilde(ωₕ)
 
 
 #-----------------------------------Solve for minimizier --------------------------------------#

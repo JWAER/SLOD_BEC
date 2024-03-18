@@ -44,8 +44,8 @@ setdiff!(Layer,mesh.bdry); #need to be here, otherwise some simplices would be o
 	vᵢ∇ₙvⱼ = Assemble.M_bc(mesh,bd,bd[1:3:end-1]);
 	#remove dofs on bdry to compute a-inv. of coarse elements:
 	dofs = setdiff(nodes,bd)
-	B_loc = factorize(B[dofs,dofs]);
-	#B_loc = cholesky(B[dofs,dofs]);
+	#B_loc = factorize(B[dofs,dofs]);
+	B_loc = cholesky(B[dofs,dofs]);
 	M_loc = M[dofs,dofs];
 	P_loc = Matrix(P[Layer,dofs]);
 	N_Coarse = length(Layer);
@@ -86,7 +86,6 @@ setdiff!(Layer,mesh.bdry); #need to be here, otherwise some simplices would be o
 	rowvals[iit:iit+len-1] = dofs#col_s.nzind;
 	colptr[C_n+1] = colptr[C_n]+len;
 	nzval[iit:iit+len-1] = sol; iit+=len;
-	
 	end
 	
 	vod = SparseMatrixCSC(size(mesh.p,2),length(dofs_C),colptr,rowvals[1:iit-1],nzval[1:iit-1]);
@@ -204,7 +203,8 @@ function compute_slod_local(mesh,B,M,P,bd,Layer,nodes,nodes_n,n,dofs);
  
 	#remove dofs on bdry to compute a-inv. of coarse elements:
 	dofs = setdiff(nodes,bd)
-	B_loc = factorize(B[dofs,dofs]);
+	#B_loc = factorize(B[dofs,dofs]);
+	B_loc = cholesky(B[dofs,dofs]);
 
 	M_loc = M[dofs,dofs];
 	P_loc = Matrix(P[Layer,dofs]);

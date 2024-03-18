@@ -3,7 +3,7 @@ using MKLSparse
 
 β = 100;
 Ω = 0.
-N  = 8;
+N  = 48;
 ℓ = 1;
 box_size = 6; #will give a cube domain from -box to box
 ϵ = 1/2;
@@ -54,7 +54,7 @@ if(dynamics)
 	println("Computed smooth part in ", time()-tid);
 
 
-	T = 1; Nt = 2^7; max_it = 20; save_it = 1; save_here = "./Results/"; TOL = 10^-8;
+	T = 1; Nt = 2^7; max_it = 20; save_it = 10; save_here = "./Results/"; TOL = 10^-8;
 	CG_q2_ωₕ_IterativeSolvers(UGS,T,Nt,ϕ,∇φᵢ∇φⱼ,φᵢφⱼ,Vₜφᵢφⱼ,ωₕ,TOL,max_it,β,ϵ,save_it,save_here,Quad8)
 end
 

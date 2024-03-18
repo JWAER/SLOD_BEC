@@ -3,7 +3,7 @@ using MKLSparse
 
 β = 100;
 Ω = 0.
-N  = 8;
+N  = 48;
 ℓ = 1;
 box_size = 6; #will give a cube domain from -box to box
 ϵ = 1/2;
@@ -39,7 +39,7 @@ println("computed SLOD-basis ", time()-tid);
 ϕ = ϕ[:,mesh.dofs];
 
 ∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ[mesh.dofs,mesh.dofs]*ϕ')
-φᵢφⱼ = ϕ*(vᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ')
+φᵢφⱼ = ϕ*(vᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');  φᵢφⱼ +=φᵢφⱼ'; φᵢφⱼ /=2;
 Vφᵢφⱼ  = ϕ*(Vvᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');
 Vₜvᵢvⱼ = Assemble.vᵢvⱼ(mesh,Vₜ,Quad8,sparsity);
 Vₜφᵢφⱼ = ϕ*(Vₜvᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');

@@ -47,7 +47,7 @@ b = 0;
 ϕ = ϕ[:,mesh.dofs];
 
 ∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ[mesh.dofs,mesh.dofs]*ϕ')
-φᵢφⱼ = ϕ*(vᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ')
+φᵢφⱼ = ϕ*(vᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');  φᵢφⱼ +=φᵢφⱼ'; φᵢφⱼ /=2;
 Vφᵢφⱼ  = ϕ*(Vvᵢvⱼ[mesh.dofs,mesh.dofs]*ϕ');
 #φᵢLzφⱼ  = ϕ*(vᵢLzvⱼ[mesh.dofs,mesh.dofs]*ϕ');
 

@@ -51,8 +51,8 @@ setdiff!(Layer,mesh.bdry); #need to be here, otherwise some simplices would be o
 	vᵢ∇ₙvⱼ = Assemble.M_bd(mesh,bdry_faces,normals,bdry_tet,Idx_I,Idx_J,Val);
 	
 	#remove dofs on bdry to compute "local solutions to P1 input"
-	 B_loc = factorize(B[dofs,dofs]);
-	#B_loc = cholesky(B[dofs,dofs]);
+	# B_loc = factorize(B[dofs,dofs]);
+	B_loc = cholesky(B[dofs,dofs]);
 	M_loc = M[dofs,dofs];
 	P_loc = Matrix(P[Layer,dofs]);
 	N_Coarse = length(Layer);
@@ -233,8 +233,8 @@ tid = time()
 
         #remove dofs on bdry to compute a-inv. of coarse elements:
         dofs = setdiff(nodes,bdry_nodes_loc)
-         B_loc = factorize(B[dofs,dofs]);
-        #B_loc = cholesky(B[dofs,dofs]);
+      #   B_loc = factorize(B[dofs,dofs]);
+        B_loc = cholesky(B[dofs,dofs]);
         M_loc = M[dofs,dofs];
         P_loc = Matrix(P[Layer,dofs]);
         N_Coarse = length(Layer);
@@ -568,8 +568,8 @@ function compute_slod_local(mesh,B,M,P,Layer,n,nodes,bdry_faces,normals,bdry_tet
 	
 	#remove dofs on bdry to compute a-inv. of coarse elements:
 	dofs = setdiff(nodes,bdry_nodes_loc)
-	 B_loc = factorize(B[dofs,dofs]);
-	#B_loc = cholesky(B[dofs,dofs]);
+	# B_loc = factorize(B[dofs,dofs]);
+	B_loc = cholesky(B[dofs,dofs]);
 	M_loc = M[dofs,dofs];
 	P_loc = Matrix(P[Layer,dofs]);
 	N_Coarse = length(Layer);

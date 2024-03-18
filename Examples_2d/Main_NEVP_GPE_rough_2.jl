@@ -4,12 +4,13 @@ include("../Functions/Dependencies_2d.jl");
 prealloc = 2*10^8;
 #----------------------------Generate or load square domain -------------------------------------#
 ℓ = 2;
-for Nh = [2]; #refinement, for smooth problems Nh = 1;
+#for Nh = [2]; #refinement, for smooth problems Nh = 1;
 Ns = [12 18 24 36 48 72 96 144 192 384]
-
+Nh = 2;
 #for it = 3
 #for it = 2
-for it = 9
+#for it = 
+it = 6
 βs = 100;
 Ω = 0.0;
 ϵ = 1/2; 
@@ -27,8 +28,6 @@ Vd(x) = 2*sum(x.>0);#5 + min.(floor.(2*sin(π*x[1]/3)*sin(π*x[2]/3)),1);
 Vs(x) = 1/2*dot(x,x);
 
 dynamics = false;
-βt = 20;
-Vₜ(x) = 5 + min.(floor.(2*sin(π*x[1]/1)*sin(π*x[2]/1)),1);
 #------------------------------Compute All Matrix Quantities------------------------------------#
 tid = time();
 	sparsity = Assemble.MatrixSparsity(mesh);
@@ -76,7 +75,7 @@ println("Assemby  ", tid_assembly);
 	
 
 	∇φᵢ∇φⱼ = ϕ*(∇vᵢ∇vⱼ*ϕ')
-	φᵢφⱼ = ϕ*(vᵢvⱼ*ϕ')
+	φᵢφⱼ = ϕ*(vᵢvⱼ*ϕ'); φᵢφⱼ +=φᵢφⱼ'; φᵢφⱼ /=2;
 	Vφᵢφⱼ = ϕ*(vᵢvⱼV*ϕ');
 	φᵢLzφⱼ = ϕ*(vᵢLzvⱼ*ϕ');
 	
@@ -96,8 +95,8 @@ println("Assemby  ", tid_assembly);
 #-----------------------------------Solve for minimizier --------------------------------------#
 
 
-φᵢφⱼ_lu = lu(φᵢφⱼ); # compute lu once
-UGS = Assemble.initial_guess(Ω,mesh,φᵢφⱼ_lu,vᵢvⱼ,dofs_f,ϕ)
+φᵢφⱼ_chol = cholesky(φᵢφⱼ); # compute lu once
+UGS = Assemble.initial_guess(Ω,mesh,φᵢφⱼ_chol,vᵢvⱼ,dofs_f,ϕ)
 
 #----------------------------------------------------------------------------------------------#
 #max_it = 20
@@ -105,11 +104,11 @@ tid = time()
 max_it = 1000
 tol_Res = .1;
 tol_stop = 1e-7
-UGS, Ẽ,E,conv = J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ ,ϵ,βs,Quad_9,tol_Res,tol_stop)	
+UGS, Ẽ,E,conv = J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,UGS,ϕ,max_it,φᵢφⱼ_chol,ωₕ,ω̃ₕ ,ϵ,βs,Quad_9,tol_Res,tol_stop)	
 tid = time()-tid;
 println("OD ", tid);
 Uh = ϕ'*UGS;
 save("./Results/Rough/J_method_N_"*string(N)*"_Nh"*string(Nh)*"_l"*string(ℓ)*".jld","UGS",UGS,"Ẽ",Ẽ,"conv",conv,"tid",tid, "E", E,"Uh", Uh,"tid_assembly",tid_assembly)
 
-end
-end
+#end
+#end

@@ -5,7 +5,7 @@ export Compute_NL_Energy
 using LinearAlgebra,SparseArrays
 
 include("Assemble_Matrices.jl");
-include("Assemble_Nonlinear.jl");
+#include("Assemble_Nonlinear.jl");
 include("find_local_bdry.jl")
 include("Assemble_SLOD.jl");
 include("Basis.jl")

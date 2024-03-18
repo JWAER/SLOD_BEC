@@ -68,6 +68,10 @@ end
 M1=φᵢφⱼ + 1im*ϵ*k*γ[1]*∇φᵢ∇φⱼ + 1im*k*γ[1]*Vφᵢφⱼ ;
 M2=φᵢφⱼ + 1im*ϵ*k*γ[2]*∇φᵢ∇φⱼ + 1im*k*γ[2]*Vφᵢφⱼ ;
 
+M1_precond = ilu(M1,τ = 0.00001);
+M2_precond = ilu(M2,τ = 0.00001);
+
+
 # time integration
 # set intial starting point for fixed point iteration
 ξⁱ_1 = zeros(SpaceDim_C)*0im;
@@ -79,7 +83,7 @@ copyto!(U,U0)
 tid = time();
 
 
-
+pr = CholeskyPreconditioner(φᵢφⱼ, 2)
 
 for n = 1:Nt
     
@@ -90,38 +94,41 @@ for n = 1:Nt
     copyto!(ξⁱ_1,U);
     copyto!(ξⁱ_2,U);
 
+
+tiiid = time();
     while Δ > TOL && it<max_it
   
         Û = c0[1]*U+c[1,1]*ξⁱ_1+c[2,1]*ξⁱ_2;
         Ûₕ = ϕ'*Û;
-        ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ)) 
+        ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ),Pl=pr) 
         ρₕ = ϕ'*ρ;
         f₁ = ϕ*Assemble.u²uvᵢ(ωₕ,Ûₕ,ρₕ)
  
         
         Û = c0[2]*U+c[1,2]*ξⁱ_1+c[2,2]*ξⁱ_2;
         Ûₕ = ϕ'*Û;
-        ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ)) 
+        ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ),Pl=pr) 
         ρₕ = ϕ'*ρ; 
         f₂ = ϕ*Assemble.u²uvᵢ(ωₕ,Ûₕ,ρₕ)
         
         Û = c0[3]*U+c[1,3]*ξⁱ_1+c[2,3]*ξⁱ_2;
         Ûₕ = ϕ'*Û;
-        ρ =  cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ))
+        ρ =  cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ),Pl=pr)
         ρₕ = ϕ'*ρ; 
         f₃ = ϕ*Assemble.u²uvᵢ(ωₕ,Ûₕ,ρₕ)
         
         Û = c0[4]*U+c[1,4]*ξⁱ_1+c[2,4]*ξⁱ_2;
         Ûₕ = ϕ'*Û;
-	ρ =  cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ))
+	ρ =  cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Ûₕ,ωₕ),Pl=pr)
         ρₕ = ϕ'*ρ; 
         f₄ = ϕ*Assemble.u²uvᵢ(ωₕ,Ûₕ,ρₕ)
         # compute right hand side
         F1	= a[1]*φᵢφⱼ*U - 1im*k*β*( b[1,1]*f₁ + b[1,2]*f₂ + b[1,3]*f₃ +b[1,4]*f₄);                                       
         F2	= a[2]*φᵢφⱼ*U - 1im*k*β*( b[2,1]*f₁ + b[2,2]*f₂ + b[2,3]*f₃ +b[2,4]*f₄);
      
-         ξⁱ⁺¹_1 = idrs(M1,F1,reltol=10^-11);
-        ξⁱ⁺¹_2 = idrs(M2,F2,reltol=10^-11);
+        ξⁱ⁺¹_1 = idrs(M1,F1,Pl=M1_precond,reltol=10^-11);
+        ξⁱ⁺¹_2 = idrs(M2,F2,Pl=M2_precond,reltol=10^-11);
+        
         
         # update iteration paramter
           
@@ -135,7 +142,7 @@ for n = 1:Nt
         it+=1;
 
     end
- #  println("one time step ", time()-tid, " it ", it)
+  println("one time step ", time()-tiiid, " it ", it)
   
     # set result and calculate U(n+1)
    # 
@@ -150,7 +157,7 @@ for n = 1:Nt
           if(mod(n,save_it)==0)
 		
 		Uₕ = ϕ'*U;
-		ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Uₕ,ωₕ))
+		ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Uₕ,ωₕ),Pl=pr)
 			 	
 	 	E_nl = β/2*dot(ρ,φᵢφⱼ*ρ);
 	 	#println(E_nl);
@@ -159,13 +166,13 @@ for n = 1:Nt
 		U_interim = 0im*zeros(size(mesh.p,2))
 		U_interim[mesh.dofs] .= Uₕ;
 
-		Eᵧ =  Assemble.NL_Energy(U_interim,Quad,mesh);
-		E_exact = U'*(ϵ*(∇φᵢ∇φⱼ*U)+(Vφᵢφⱼ*U))+β/2*Eᵧ;
+		#Eᵧ =  Assemble.NL_Energy(U_interim,Quad,mesh);
+		#E_exact = U'*(ϵ*(∇φᵢ∇φⱼ*U)+(Vφᵢφⱼ*U))+β/2*Eᵧ;
 
 		println("ENERGY"," ", (round((Energy)*10^7)/10^7).re,  " time ", n*k);
 #		println("ENERGY ", E_exact)
 		
-		save(save_here*"sol_SLOD_"*string(n)*".jld","U",U,"Energy",Energy, "E_Exact",E_exact)
+		save(save_here*"sol_SLOD_"*string(n)*".jld","U",U,"Energy",Energy)
 		 
 	end
 println("all else ", time()-tid);

@@ -7,7 +7,7 @@ include("./GS.jl")
 
 
 
-function J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,U,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ,ϵ,β,Quad,tol_Res)
+function J_METHOD_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,U,ϕ,max_it,φᵢφⱼ_chol,ωₕ,ω̃ₕ,ϵ,β,Quad,tol_shift,tol_stop)
 
 
 ϕᵀ = sparse(ϕ');
@@ -24,7 +24,7 @@ Mass = sqrt(dot(U,(φᵢφⱼ*U)));
 U = U/Mass
 	
 Uₕ = ϕᵀ*U;
-ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+ρ =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
 
 dofs_f = setdiff(1:size(mesh.p,2),mesh.bdry);
 U_interim = zeros(size(mesh.p,2))
@@ -47,7 +47,7 @@ for n = 1:max_it
 	RHS = φᵢφⱼ*U;
 
         Uₕ = ϕ'*U;
-        ρ = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+        ρ = φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
         ρₕ = ϕ'*ρ;
 	ρvᵢvⱼ = Assemble.ρφᵢφⱼ(ρₕ,ωₕ,ω̃ₕ,TRI);
         ρφᵢφⱼ = ϕ*ρvᵢvⱼ*ϕᵀ;
@@ -66,7 +66,7 @@ for n = 1:max_it
 		
 	#println("Residual ", Res)
 	# Shifting
-	if Res < tol_Res
+	if Res < tol_shift
 		# Rayleigh shifted
 		σ = -λ;
 	else
@@ -86,12 +86,12 @@ for n = 1:max_it
 	G = G1 + ((y*G1)/(1-y*G2))*G2;
 	G = 1/(U'*(φᵢφⱼ*G))*G;
 		
-	if Res < tol_Res
+	if Res < tol_shift
 		τ = 1;
 	else
 
               Gₕ = ϕ'*G;
-                ρ_G =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
+                ρ_G =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
                 ρ_Gₕ = ϕ'*ρ_G;
 		Gρ_Gvᵢ =ϕ*Assemble.u²uvᵢ(ωₕ,Gₕ,ρ_Gₕ);
 		
@@ -122,7 +122,7 @@ for n = 1:max_it
 	U ./= sqrt(dot(U,(φᵢφⱼ*U)));
 	
         Uₕ = ϕ'*U;
-        ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+        ρ =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
 
 	out = U'*Aᵥ*U+β/2*(ρ'*(φᵢφⱼ*ρ));
 		
@@ -148,7 +148,7 @@ end
 return U,Energy,E_exact,conv_history
 end
 
-function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,U,ϕ,max_it,φᵢφⱼ_lu,ωₕ,ω̃ₕ,ϵ,Ω,β,Quad,tol_Switch,tol_Res,E_TOL)
+function J_METHOD_Rot_ωₕ(mesh,vᵢvⱼ,∇φᵢ∇φⱼ,φᵢφⱼ,Vφᵢφⱼ,φᵢLzφⱼ,U,ϕ,max_it,φᵢφⱼ_chol,ωₕ,ω̃ₕ,ϵ,Ω,β,Quad,tol_Switch,tol_Res,E_TOL)
 
 
 ϕᵀ = sparse(ϕ');
@@ -199,9 +199,9 @@ tid = time();
 		RHS = [φᵢφⱼ*real(U);φᵢφⱼ*imag(U)];
 		
 		Uₕ = ϕᵀ*U;
-		ρ_Re²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
-		ρ_Im²  = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
-		ρ_ReIm = φᵢφⱼ_lu\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
+		ρ_Re²  = φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(real(Uₕ),ωₕ));
+		ρ_Im²  = φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(imag(Uₕ),ωₕ));
+		ρ_ReIm = φᵢφⱼ_chol\(ϕ*Assemble.u²uvᵢ(ωₕ,real(Uₕ),imag(Uₕ)));
 		ρ  = ρ_Re² + ρ_Im²;
 
 
@@ -235,8 +235,9 @@ tid = time();
 		#σ = -λ
 		Jσ = (J_sparse-λ*φᵢφⱼ_Bd)
 		
-		idrs!(G1,Jσ,RHS,reltol = 1e-8, maxiter = SpaceDim_C*10)
-		idrs!(G2,Jσ,x)
+		pl = DiagonalPreconditioner(Jσ)
+		idrs!(G1,Jσ,RHS,Pl = pl,reltol = 1e-8, maxiter = SpaceDim_C*10)
+		idrs!(G2,Jσ,x,Pl = pl, reltol = 1e-8, maxiter = SpaceDim_C*10)
 	
 		G1+= dot(G1,y)/(1-dot(y,G2))*G2;   
 		G .= G1[1:SpaceDim_C] + 1im*G1[(1+SpaceDim_C):2*SpaceDim_C];
@@ -247,7 +248,7 @@ tid = time();
 		U = G;
 		U ./= sqrt(real(dot(U,φᵢφⱼ*U)));
 		
-		ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+		ρ =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
  		
 		opt = real(U'*(L*U)+β/2*ρ'*(φᵢφⱼ*ρ));
 	else 
@@ -255,7 +256,7 @@ tid = time();
 		RHS = φᵢφⱼ*U;
 	
 		Uₕ = ϕᵀ*U;
-		ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+		ρ =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
  		ρₕ =ϕᵀ*ρ; #consider changing
  	
 		ρvᵢvⱼ = Assemble.ρφᵢφⱼ(ρₕ,ωₕ,ω̃ₕ,TRI);
@@ -264,11 +265,14 @@ tid = time();
 		λ = real(U'*(L*U)+β*U'*(Mρ*U));
 		d = (L*U)+β*(Mρ*U)-λ*(φᵢφⱼ*U); Res = sqrt(real(dot(d,d)));
 		
-		
-		idrs!(G,L+β*Mρ,RHS,reltol = 10^-8); 
+		Mit = L+β*Mρ;
+		pl = DiagonalPreconditioner(Mit);
+		if(n==150); file = matopen("Matrix_Rot.mat","w"); write(file,"Mit",Mit); close(file); end
+		idrs!(G,Mit,RHS,reltol = 10^-7,Pl=pl); 
+		#idrs!(G,L+β*Mρ,RHS,reltol = 10^-7); 
 		
 		Gₕ = ϕᵀ*G;
-		ρ_G =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
+		ρ_G =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
 		ρ_Gₕ = ϕᵀ*ρ_G;
 		Gρ_Gvᵢ =ϕ*Assemble.u²uvᵢ(ωₕ,Gₕ,ρ_Gₕ);
 		
@@ -280,7 +284,7 @@ tid = time();
   
   		b0 = β/2*real(dot(U,Mρ*U));
 		b1 = 2*β*real(dot(G,Mρ*U));
-		GU = φᵢφⱼ_lu\(ϕ*real(Assemble.u²uvᵢ(ωₕ,ϕᵀ*U,conj(Gₕ))));
+		GU = φᵢφⱼ_chol\(ϕ*real(Assemble.u²uvᵢ(ωₕ,ϕᵀ*U,conj(Gₕ))));
 		b2 = β*real(dot(G,Mρ*G)+2*dot(GU,φᵢφⱼ*GU));
 
 		b3 = 2*β*real(dot(U,Gρ_Gvᵢ));
@@ -306,6 +310,7 @@ tid = time();
 	diff_E = Energy - opt;	
 	Energy = opt;
 	println(n, ": Energy ", real(Energy), " λ ", λ, " Res ", Res , " time ", round(100*(time()-tid))/100)
+	
 	conv_history[n,:] = [real(Energy), λ, Res]; 
 	if( (abs(Res)<tol_Res) | (N_it == max_it) | ( abs(diff_E)<E_TOL) );
 		println( "time online ", time()-tid_online); 
@@ -339,6 +344,7 @@ E_exact = 0.;
 conv_history = zeros(max_it,3);
 Aᵥ = (ϵ*∇φᵢ∇φⱼ+Vφᵢφⱼ);
 
+
 SpaceDim_C = size(ϕ,1); #coarse
 SpaceDim_f = size(ϕ,2); #fine 	
 
@@ -360,6 +366,7 @@ println("ENERGY START"," ", round((Energy)*10^7)/10^7, " Eᵧ ", Eᵧ, " Eb ",ρ
 tid_online = time();
 	
 TRI = sparse(LowerTriangular(vᵢvⱼ));
+pr = CholeskyPreconditioner(φᵢφⱼ, 2)
 
 for n = 1:max_it
 
@@ -367,8 +374,8 @@ for n = 1:max_it
 	RHS = φᵢφⱼ*U;
 
         Uₕ = ϕ'*U;
-       # ρ = φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
-        ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+       # ρ = φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+        ρ = cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Uₕ,ωₕ),Pl=pr);
         
         ρₕ = ϕ'*ρ;
 	ρvᵢvⱼ = Assemble.ρφᵢφⱼ(ρₕ,ωₕ,ω̃ₕ,TRI);
@@ -401,8 +408,10 @@ for n = 1:max_it
 	# x = ρφᵢφⱼ*U;
 	# y = 2*β*U'*φᵢφⱼ;
 	Jσ = J_sparse + σ*φᵢφⱼ;	
-	G1 = cg(Jσ,RHS); #
-	G2 = cg(Jσ,x);
+	p = DiagonalPreconditioner(Jσ);
+
+	G1 = cg(Jσ,RHS,Pl=p); #
+	G2 = cg(Jσ,x,Pl=p);
 	G = G1 + ((y*G1)/(1-y*G2))*G2;
 	G = 1/(U'*(φᵢφⱼ*G))*G;
 		
@@ -411,8 +420,8 @@ for n = 1:max_it
 	else
 
               Gₕ = ϕ'*G;
-               # ρ_G =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
-                ρ_G =cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
+               # ρ_G =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Gₕ,ωₕ));
+                ρ_G =cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Gₕ,ωₕ),Pl=pr);
                 ρ_Gₕ = ϕ'*ρ_G;
 		Gρ_Gvᵢ =ϕ*Assemble.u²uvᵢ(ωₕ,Gₕ,ρ_Gₕ);
 		
@@ -441,8 +450,8 @@ for n = 1:max_it
 	U ./= sqrt(dot(U,(φᵢφⱼ*U)));
 	
         Uₕ = ϕ'*U;
-       # ρ =φᵢφⱼ_lu\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
-	 ρ =cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+       # ρ =φᵢφⱼ_chol\(ϕ*Assemble.ρvᵢ(Uₕ,ωₕ));
+	 ρ =cg(φᵢφⱼ,ϕ*Assemble.ρvᵢ(Uₕ,ωₕ),Pl=pr);
 
 	out = U'*Aᵥ*U+β/2*(ρ'*(φᵢφⱼ*ρ));
 		
